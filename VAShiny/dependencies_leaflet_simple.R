@@ -25,7 +25,9 @@ harmonized_data <- read.csv("Outputs/Corpus/harmonized_data.csv")
 indicators <- read.csv("Outputs/indicators_compiled.csv")
 column_names <- readxl::read_excel("Data/names_of_columns.xlsx")
 countries <- read_sf("Data/cntrs_smpl/countries3.shp") %>%     # load simplified data
-  rename(ISO_Alpha_3 = GID_0)
+  rename(ISO_Alpha_3 = GID_0) #%>% st_buffer(0) %>% st_wrap_dateline()
+
+
 
 # Combine and project data
 colnames(indicators)[2:25] <- column_names$Short_Name
@@ -37,11 +39,13 @@ df <- left_join(countries, df, by = "ISO_Alpha_3")
 
 # Amend dataset for testing purposes
 #choose countries 
-nameskeep <- "DEU|FRA|ESP|PRT|ITA|LIE|CHE|AUT"
+# nameskeep <- "DEU|FRA|ESP|PRT|ITA|LIE|CHE|AUT"
 # nameskeep <- "DEU|FRA|ESP|PRT|ITA|LIE"
 # nameskeep <- "DEU|FRA|ITA|LIE|CHE|AUT"
-# nameskeep <- "DEU|LIE|CHE|AUT"
-# 
+nameskeep <- "DEU|LIE|CHE|AUT|FJI"
+
+#the countries that cross the dateline + another
+# nameskeep <- "ATA|RUS|FJI|DEU"
 df <- df[grep(nameskeep, df$ISO_Alpha_3),]
 # poly <- poly[grep(nameskeep, poly$ISO_Alpha_3),] # test with these (or other) countries for faster loading times
 
@@ -49,13 +53,13 @@ df <- df[grep(nameskeep, df$ISO_Alpha_3),]
 # Project data
 # lonlatpr <- "+proj=lonlat +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m"
 # poly <- st_transform(df, lonlatpr) # old
-poly <- st_transform(df, 4326) # 4326 equals WGS84
+# poly <- st_transform(df, 4326) # 4326 equals WGS84
 
 # Wrap dateline
 # poly$geometry <- (st_geometry(poly) + c(360,90)) %% c(360) - c(0,90)
 
 # drop empty geometries
-poly <- poly %>% filter(!st_is_empty(.)) 
+poly <- df %>% filter(!st_is_empty(.)) 
 
 # poly <- st_wrap_dateline(poly)
 
@@ -107,8 +111,8 @@ pdata <- as.data.frame(poly)
 names(pdata) <- c("ISO", "Country", choiceNames)
 
 #Get coordinates from country polygons
-coordpts <- SpatialPoints(poly) %>% as.data.frame()
-names(coordpts) <- c("Lon","Lat")
+# coordpts <- SpatialPoints(poly) %>% as.data.frame()
+# names(coordpts) <- c("Lon","Lat")
 
 
 
@@ -165,6 +169,21 @@ names(pal) <- choiceValues
 library(leaflet)
 
 # create map object
-my_map <- leaflet(poly, options = leafletOptions(minZoom = 2, maxZoom = 7, worldCopyJump = F)) %>% 
-                  addProviderTiles(providers$CartoDB.Positron, options = providerTileOptions(noWrap = T)) #%>% # see https://rstudio.github.io/leaflet/basemaps.html
+my_map <- leaflet(poly, options = leafletOptions(minZoom = 2, maxZoom = 7, worldCopyJump = T)) %>%
+                  addProviderTiles(providers$CartoDB.Positron, options = providerTileOptions(noWrap = T)) %>%
+                  addPolygons(fillColor = topo.colors(10, alpha = NULL), stroke = FALSE)
+
+# utility function to change fill color
+modFillCol <- function(x, var_x) {
+  cls <- lapply(x$x$calls, function(cl) {
+    if (cl$method == "addPolygons") {
+      cl$args[[4]]$fillColor <- myPalette(var_x)
+    }
+    cl
+  })
+  x$x$calls <- cls
+  x
+}
+
+# see https://rstudio.github.io/leaflet/basemaps.html
                   # setView(lng=coordpts[poly$NAME_0 == "Germany","Lon"], lat=coordpts[poly$NAME_0 == "Germany","Lat"], zoom=2)
