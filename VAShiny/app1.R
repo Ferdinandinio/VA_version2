@@ -21,7 +21,7 @@ ui <- fluidPage(
     
     
     # App title ----
-    titlePanel("Valuation Atlas"),
+    titlePanel("Valuation Atlas Viewer"),
     
     # Sidebar layout with input and output definitions ----
     # sidebarLayout(
@@ -35,13 +35,13 @@ ui <- fluidPage(
     conditionalPanel(
         condition = "input.inTabset == 'Map'",
         {fluidRow(style="background-color:#e8e8e8; padding:10px; border-radius:10px",
-                        tags$b("View Map"), br(), br(), 
+                        # tags$b("View Map"), br(), br(), 
                         
                         # Add Reset view button
                         # Add options to limit map in box
                         
                         # Choose space
-                        selectInput(inputId = "Space", label="Choose where you want to go", choices = c("Country", "Region", "Global"), selected = "Global"), # Make zoom
+                        selectInput(inputId = "Space", label="Select location", choices = c("Global", "Country"), selected = "Global"), # Make zoom
         
                         #Make second choices pop up based on first choice in Space
                         #Country selection
@@ -50,20 +50,17 @@ ui <- fluidPage(
                                                                             label="Select country",
                                                                             choices=c("",poly$NAME_0)) 
                                                             ),
-                        #Region selection                                    
-                        conditionalPanel(condition='input.Space=="Region"',
-                                                                             selectInput(inputId="Region",
-                                                                                         label="Select region",
-                                                                                         choices=c("", "Region1", "Region2"))
-                                                            ),
-                        
                         
                         
                         # radioButtons(inputId = "Indicator", label="Choose the dataset", choices = c("Density of Studies", "Density of Organizations", "Ratio of Studies and Organizations"), selected = "Density of Studies"),
-                        radioButtons(inputId = "Indicator", label="Choose the dataset", choiceNames = choiceNames, choiceValues = choiceValues),
                         
-                        radioButtons(inputId = "TempRes", label="Choose temporal resolution", choices = c("Total", "Before 2010", "After 2010"), selected = "Total"), #
-                        textInput(inputId = "Search", label="")
+                        radioButtons(inputId = "Indicator", label="Select Attribute", choiceNames = CNI, choiceValues = CVI),# 
+                        
+                        
+                        
+                        
+                        radioButtons(inputId = "TempRes", label="Select time frame", choiceNames = CNT, choiceValues = CVT), #
+                        # textInput(inputId = "Search", label="")
                         
                         
                         
@@ -81,34 +78,34 @@ ui <- fluidPage(
                     # tags$b("Select a country to view data"), br(), br(),
                                    selectInput(inputId="Country",
                                                label="Select country",
-                                               choices=c("",poly$NAME_0))
+                                               choices=c("", poly$NAME_0))
          )}   
         
     ),
     
     
     #Compare
-    conditionalPanel(
-        condition = "input.inTabset == 'Compare'",
-        {fluidRow(style="background-color:#e8e8e8; padding:10px; border-radius:10px",
-                  tags$b("View comparison"), br(), br(),
-                  
-                  #Country selection
-                  
-                  selectInput(inputId="Country1",
-                              label="1st country",
-                              choices=c("",poly$NAME_0)),
-                  
-                  selectInput(inputId="Country1",
-                              label="2nd country",
-                              choices=c("",poly$NAME_0))
-                  
-                  
-                  
-                  
-        )}   
-        
-    ),
+    # conditionalPanel(
+    #     condition = "input.inTabset == 'Compare'",
+    #     {fluidRow(style="background-color:#e8e8e8; padding:10px; border-radius:10px",
+    #               tags$b("View comparison"), br(), br(),
+    #               
+    #               #Country selection
+    #               
+    #               selectInput(inputId="Country1",
+    #                           label="1st country",
+    #                           choices=c("",poly$NAME_0)),
+    #               
+    #               selectInput(inputId="Country1",
+    #                           label="2nd country",
+    #                           choices=c("",poly$NAME_0))
+    #               
+    #               
+    #               
+    #               
+    #     )}   
+    #     
+    # ),
     
        
     
@@ -157,7 +154,7 @@ ui <- fluidPage(
                tabsetPanel(id="inTabset",
                   tabPanel("Map", leafletOutput("map", height="80vh") ),
                   tabPanel("Table", tableOutput("table")),
-                  tabPanel("Compare")
+                  # tabPanel("Compare")
         )#end tabset panel
                   )
     # )
@@ -165,15 +162,22 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
     
+    cchoices <- reactive(paste0(input$Indicator, input$TempRes)) # Combined choices of Indicator and TempRes return full Indicator name
     
+    
+
     # fpdata <- reactive({ #filtered data for country selection and popup table
     #     pdata[poly$NAME_0 == input$Country,]
     # })
     
-    fpdata1 <- reactive({ #filtered data for country selection and popup table
-        if(exists("input$Country")==F){return(pdata)}else{return(pdata[poly$NAME_0 == input$Country,])}
-    })
+    # fpdata1 <- reactive({ #filtered data for country selection and popup table
+    #     if(exists("input$Country")==F){return(pdata)}else{return(pdata[poly$NAME_0 == input$Country,])}
+    # })
     
+    
+    fpdata <- reactive({ #filtered data for popup table
+      pdata[pdata$NAME_0 == input$Country, c(1, 2, grep(input$TempRes, names(poly)))]
+    })
     
     # Map   
     {
@@ -192,9 +196,9 @@ server <- function(input, output, session) {
     
     # Reactive expression for the data subsetted to what the user selected
     filteredData <- reactive({
-        poly[input$Indicator]
+        poly[cchoices()]
     })
-    
+    # 
     # This reactive expression for color palette
     # colorpal <- reactive({
     #     pal[[input$Indicator]]
@@ -204,38 +208,44 @@ server <- function(input, output, session) {
     observe({
         palette <- colorBin(bins=10, pretty=T,
                             palette = pal[[input$Indicator]],
-                            domain = poly[[input$Indicator]]
+                            domain = poly[[cchoices()]]
                             )
         
         leafletProxy("map", data = filteredData()) %>%
             clearShapes() %>% clearControls() %>%
-            addPolygons(stroke=F, smoothFactor = 0.2, 
-                        color = ~palette(poly[[input$Indicator]]), label=poly$NAME_0, # data shown on hover
-                        weight = 1, popup=popupTable(pdata, row.numbers = F, feature.id = F), #map(1:length(names(poly)), ~poly[[.x]])
+            addPolygons(stroke=F,  
+                        color = ~palette(poly[[cchoices()]]), label=poly$NAME_0, # data shown on hover
+                        weight = 1, popup=popupTable(pdata[, c(1, 2, grep(input$TempRes, names(poly)))], row.numbers = F, feature.id = F), #map(1:length(names(poly)), ~poly[[.x]])
                         fillOpacity = 0.7)  %>%
             addScaleBar(position = "bottomleft", options = scaleBarOptions()) %>%
-            addLegend("topright", title=choiceNames[grep(paste0(input$Indicator,"$"), choiceValues)], pal=palette, values=poly[[input$Indicator]], na.label = "Missing", opacity=1)
+            addLegend("topright", title=tcAttributes$Names[tcAttributes$Values==cchoices()], pal=palette, values=poly[[cchoices()]], na.label = "Missing", opacity=1)
             labelFormat(suffix=" ")
-        
+            # choiceNames[grep(paste0(input$Indicator,"$"), choiceValues)]
     })
     
+    
+    #Global zoom
+    observe({
+        req(input$Space=="Global")
+            leafletProxy("map") %>%
+                clearPopups() %>%  # addMarkers(lng = ctryzoom$Lon, lat = ctryzoom$Lat, popup=popupTable(pdata, row.numbers = F, feature.id = F)) %>% 
+                setView(lng = 0, lat = 20, zoom = 2) 
+    })
     
     # Country selection zoom
     fpts <- reactive({ #filtered points
         coordpts[poly$NAME_0 == input$Country,]
     })
 
-    fpdata <- reactive({ #filtered data for popup table
-        pdata[poly$NAME_0 == input$Country,]
-    })
+
 
 
     observe({
         req(input$Country)
         ctryzoom <- fpts()
         leafletProxy("map") %>%
-            clearMarkers() %>%  # addMarkers(lng = ctryzoom$Lon, lat = ctryzoom$Lat, popup=popupTable(pdata, row.numbers = F, feature.id = F)) %>% 
-            setView(lng = ctryzoom$Lon, lat = ctryzoom$Lat, zoom = 6)%>%
+            clearPopups() %>%  # addMarkers(lng = ctryzoom$Lon, lat = ctryzoom$Lat, popup=popupTable(pdata, row.numbers = F, feature.id = F)) %>% 
+            setView(lng = ctryzoom$Lon, lat = ctryzoom$Lat, zoom = 6) %>%
             addPopups(lng = ctryzoom$Lon, lat = ctryzoom$Lat, popup=popupTable(fpdata(), row.numbers = F, feature.id = F))
              
     })

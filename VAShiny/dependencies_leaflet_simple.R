@@ -6,101 +6,81 @@ library(tidyverse)
 library(cowplot)
 library(sf)
 library(sp)
+library(readxl)
+# library(openxlsx)
 
-
-data <- readxl::read_excel("Data/IPBES_VA_Uptake_Corpus_06May20_GEONames_TS_16June20.xlsx", sheet = 1)
-
-# Declare Functions
-countFunction <- function(data, x) {
-  data %>%
-    mutate(x = strsplit(as.character(x), ", ")) %>%
-    unnest(x) %>%
-    count(x, sort = TRUE) %>%
-    drop_na() %>%
-    mutate(n_log = log(n))
-}
+# data <- readxl::read_excel("Data/IPBES_VA_Uptake_Corpus_06May20_GEONames_TS_16June20.xlsx", sheet = 1)
 
 # Necessary datasets for the upcoming maps
-harmonized_data <- read.csv("Outputs/Corpus/harmonized_data.csv")
-indicators <- read.csv("Outputs/indicators_compiled.csv")
-column_names <- readxl::read_excel("Data/names_of_columns.xlsx")
 countries <- read_sf("Data/cntrs_smpl/countries3.shp") %>%     # load simplified data
-  rename(ISO_Alpha_3 = GID_0) #%>% st_buffer(0) %>% st_wrap_dateline()
+                      rename(ISO_Alpha_3 = GID_0) #%>% subset(select=-c(NAME_0))
 
+processed_data <- read.csv("Data/processed_data_D.csv")
 
-
-# Combine and project data
-colnames(indicators)[2:25] <- column_names$Short_Name
-
-df <- left_join(harmonized_data, indicators, by = "ISO_Alpha_3")
-df <- left_join(countries, df, by = "ISO_Alpha_3")
-
+# Combine data
+df <- left_join(countries, processed_data, by = "ISO_Alpha_3")
 
 
 # Amend dataset for testing purposes
-#choose countries 
-# nameskeep <- "DEU|FRA|ESP|PRT|ITA|LIE|CHE|AUT"
-# nameskeep <- "DEU|FRA|ESP|PRT|ITA|LIE"
-# nameskeep <- "DEU|FRA|ITA|LIE|CHE|AUT"
 nameskeep <- "DEU|LIE|CHE|AUT|FJI"
 
 #the countries that cross the dateline + another
-# nameskeep <- "ATA|RUS|FJI|DEU"
-df <- df[grep(nameskeep, df$ISO_Alpha_3),]
-# poly <- poly[grep(nameskeep, poly$ISO_Alpha_3),] # test with these (or other) countries for faster loading times
 
+# Only keep selected countries
+df <- df[grep(nameskeep, df$ISO_Alpha_3),] # test with these (or other) countries for faster loading times
 
-# Project data
-# lonlatpr <- "+proj=lonlat +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m"
-# poly <- st_transform(df, lonlatpr) # old
-# poly <- st_transform(df, 4326) # 4326 equals WGS84
-
-# Wrap dateline
-# poly$geometry <- (st_geometry(poly) + c(360,90)) %% c(360) - c(0,90)
+poly <- df
+rm(df)
 
 # drop empty geometries
-poly <- df %>% filter(!st_is_empty(.)) 
+# poly <- df %>% filter(!st_is_empty(.))
 
-# poly <- st_wrap_dateline(poly)
-
-#new - just dont transform(?) bc there might be a hassle when mapping with leaflet
+# Reformat to spdf for leaflet 
 poly <- as_Spatial(poly)
-# poly@proj4string <- CRS("+init=epsg:3857")
-# poly <- spTransform(df, robin_crs) # new
-
+# poly <- as_Spatial(df)
 
 
 # rm(df,data,countries)
 
 
 
-# buffr2 <-st_wrap_dateline(df, options = c("WRAPDATELINE=YES")) %>%
-#   st_union()
-
-
-
-
 # Relevant columns for valuation atlas
 # poly <- poly[1:7] # includes geometry column (without as_Spatial(x))
-poly <- poly[1:6] # if class(poly) is spatialpolygonsdataframe
+# poly <- poly[1:4] # if class(poly) is spatialpolygonsdataframe # without log
 
 # Change names of columns into what they actually are (may need to be updated when data is changed)
 # oldnames <- names(poly)
 # indicatornames <- c("ISO Alpha 3", "Country Name", "geometry", "Density of Studies", "Density of Studies (log)", "Density of Organizations", "Density of Organizations (log)")
 # names(poly) <- indicatornames
-indicatornames <- c("ISO Alpha 3", "Country Name", "Density of Studies", "Density of Studies (log)", "Density of Organizations", "Density of Organizations (log)", "Ratio of Studies and Organizations")
+# indicatornames <- c("ISO Alpha 3", "Country Name", "Density of Studies", "Density of Studies (log)", "Density of Organizations", "Density of Organizations (log)", "Ratio of Studies and Organizations")
+# indicatornames <- c("ISO Alpha 3", "Country Name", "Density of Studies", "Density of Organizations", "Ratio of Studies and Organizations")
+CNI <- c("Density of Studies", "Density of Organizations", "Ratio of Studies and Organizations") # ChoiceNames Indicator
+CVI <- c("DoS", "DoO", "Ratio") # ChoiceValues Indicator
+
+CNT <- c("Total", "Pre-1990", "1990-1999", "2000-2009", "2010-2020") # ChoiceNames Temporal Resolution
+CVT <- c("Total", "b1990", "b2000", "b2010", "b2020") # ChoiceNames Temporal Resolution
 
 
-#Create Ratio
-# poly$`Ratio of Studies and Organizations` <- poly$`Density of Studies`/poly$`Density of Organizations`
-poly$Ratio <- poly$Names1/poly$Names2
+cAttributeNames  <- append(paste(CNI[1],CNT), append(paste(CNI[2],CNT), paste(CNI[3], CNT)))
+cAttributeValues <- append(paste0(CVI[1],CVT), append(paste0(CVI[2],CVT), paste0(CVI[3], CVT)))
+
+tcAttributes <- data.frame(Names=cAttributeNames, Values = cAttributeValues)
 
 
+# choiceValuesTotal <- paste0(iNames, "Total")
+# choiceValuesb1990 <- paste0(iNames, "b1990")
+# choiceValuesb2000 <- paste0(iNames, "b2000")
+# choiceValuesb2010 <- paste0(iNames, "b2010")
+# choiceValuesb2020 <- paste0(iNames, "b2020")
+
+# choiceValues <- mget(ls(pattern="choiceValues"))
+# names(choiceValues) <- gsub(pattern = "choiceValues", "", names(choiceValues))
+# choiceValues <- choiceValues[c(5,1:4)]
 # poly <- as_Spatial(poly)
 
 # Create Choice names and values
-choiceNames <- indicatornames[3:length(indicatornames)]
-choiceValues <- names(poly)[3:length(names(poly))]
+# choiceNames <- indicatornames[3:length(indicatornames)]
+# allAttributes <- names(poly)[3:length(names(poly))]
 # names(poly) <- indicatornames # or just change them back like this?   # beware of error message
 
 # Choice names based on choice values
@@ -108,11 +88,12 @@ choiceValues <- names(poly)[3:length(names(poly))]
 
 # Get data from poly
 pdata <- as.data.frame(poly)
-names(pdata) <- c("ISO", "Country", choiceNames)
+names(pdata) <- c("ISO", "Country", cAttributeNames)
+names(pdata) <- c("ISO", "Country", rep(CNI, each=5)) # So it always says e.g. DoS without the time
 
-#Get coordinates from country polygons
-# coordpts <- SpatialPoints(poly) %>% as.data.frame()
-# names(coordpts) <- c("Lon","Lat")
+#Get coordinates from country polygons for selection
+coordpts <- SpatialPoints(poly) %>% as.data.frame()
+names(coordpts) <- c("Lon","Lat")
 
 
 
@@ -126,14 +107,14 @@ pal <- list()
 # pal$DoF <- colorRampPalette(colors = c("#F7FCB9", "#006837"))(10)
 pal[["Density of Studies"]] <- colorRampPalette(colors = c("#F7FCB9", "#006837"))(10)
 # pal[["Density of Studies"]] <- colorBin(palette = c("#F7FCB9", "#006837"), bins=2, domain=NULL)
-pal[["Density of Studies (log)"]] <- colorRampPalette(colors = c("#F7FCB9", "#006837"))(10)
+# pal[["Density of Studies (log)"]] <- colorRampPalette(colors = c("#F7FCB9", "#006837"))(10)
 
 #Colors for Density of Organizations
 # low = "#DEEBF7",
 # high = "#08519C",
 # pal$DoO <- colorRampPalette(colors = c("#DEEBF7", "#08519C"))(10)
 pal[["Density of Organizations"]] <- colorRampPalette(colors = c("#DEEBF7", "#08519C"))(10)
-pal[["Density of Organizations (log)"]] <- colorRampPalette(colors = c("#DEEBF7", "#08519C"))(10)
+# pal[["Density of Organizations (log)"]] <- colorRampPalette(colors = c("#DEEBF7", "#08519C"))(10)
 
 # Colors for ratio (Density of Studies/Density of Organizations)
 # low = "#F7FCB9",
@@ -141,8 +122,8 @@ pal[["Density of Organizations (log)"]] <- colorRampPalette(colors = c("#DEEBF7"
 # pal$RSO <- colorRampPalette(colors = c("#F7FCB9", "#FB8C00"))(10)
 pal[["Ratio of Studies and Organizations"]] <- colorRampPalette(colors = c("#F7FCB9", "#FB8C00"))(10)
 
-
-names(pal) <- choiceValues
+# pal <- c(rep(pal[1],5), rep(pal[2],5), rep(pal[3],5))
+names(pal) <- CVI
 }
 
 # Load Shapefiles for updated borders-----
@@ -174,16 +155,16 @@ my_map <- leaflet(poly, options = leafletOptions(minZoom = 2, maxZoom = 7, world
                   addPolygons(fillColor = topo.colors(10, alpha = NULL), stroke = FALSE)
 
 # utility function to change fill color
-modFillCol <- function(x, var_x) {
-  cls <- lapply(x$x$calls, function(cl) {
-    if (cl$method == "addPolygons") {
-      cl$args[[4]]$fillColor <- myPalette(var_x)
-    }
-    cl
-  })
-  x$x$calls <- cls
-  x
-}
+# modFillCol <- function(x, var_x) {
+#   cls <- lapply(x$x$calls, function(cl) {
+#     if (cl$method == "addPolygons") {
+#       cl$args[[4]]$fillColor <- myPalette(var_x)
+#     }
+#     cl
+#   })
+#   x$x$calls <- cls
+#   x
+# }
 
 # see https://rstudio.github.io/leaflet/basemaps.html
                   # setView(lng=coordpts[poly$NAME_0 == "Germany","Lon"], lat=coordpts[poly$NAME_0 == "Germany","Lat"], zoom=2)
