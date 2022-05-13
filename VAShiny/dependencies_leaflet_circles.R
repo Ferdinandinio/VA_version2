@@ -7,27 +7,35 @@ library(cowplot)
 library(sf)
 library(sp)
 library(readxl)
+library(htmlwidgets)
 # library(openxlsx)
 
 # data <- readxl::read_excel("Data/IPBES_VA_Uptake_Corpus_06May20_GEONames_TS_16June20.xlsx", sheet = 1)
 
 # Necessary datasets for the upcoming maps
-countries <- read_sf("Data/cntrs_smpl/countries3.shp") %>%     # load simplified data
-                      rename(ISO_Alpha_3 = GID_0) #%>% subset(select=-c(NAME_0))
+countries <- read.csv("Data/ctrs_coordpts.csv") 
+
+# Get coordinate pts for selection and for circles
+coordpts <- countries[, c("Lon","Lat")]
+
+# Keep only names 
+# countries <- countries[, c("ISO_Alpha_3","NAME_0")]
+
 
 processed_data <- read.csv("Data/processed_data_D.csv")
 
 # Combine data
 df <- left_join(countries, processed_data, by = "ISO_Alpha_3")
 
+names(df)[c(1,2)] <- c("ISO Code", "Name") 
 
 # Amend dataset for testing purposes
-nameskeep <- "DEU|LIE|CHE|AUT|FJI"
+# nameskeep <- "DEU|LIE|CHE|AUT|FJI"
 
 #the countries that cross the dateline + another
 
 # Only keep selected countries
-df <- df[grep(nameskeep, df$ISO_Alpha_3),] # test with these (or other) countries for faster loading times
+# df <- df[grep(nameskeep, df$ISO_Alpha_3),] # test with these (or other) countries for faster loading times
 
 poly <- df
 rm(df)
@@ -36,7 +44,7 @@ rm(df)
 # poly <- df %>% filter(!st_is_empty(.))
 
 # Reformat to spdf for leaflet 
-poly <- as_Spatial(poly)
+# poly <- as_Spatial(poly)
 # poly <- as_Spatial(df)
 
 
@@ -87,14 +95,14 @@ tcAttributes <- data.frame(Names=cAttributeNames, Values = cAttributeValues)
 # choiceNames[grep(paste0(input$Indicator,"$"), choiceValues)]
 
 # Get data from poly
-pdata <- as.data.frame(poly)
-names(pdata) <- c("ISO", "Country", cAttributeNames)
-names(pdata) <- c("ISO", "Country", rep(CNI, each=5)) # So it always says e.g. DoS without the time
+# pdata <- as.data.frame(poly[, -c(3,4)])  #-c("Lon","Lat")
+pdata <- poly
+names(pdata) <- c("ISO Code", "Name", "Lon", "Lat",  cAttributeNames)
+names(pdata) <- c("ISO Code", "Name", "Lon", "Lat",  rep(CNI, each=5)) # So it always says e.g. DoS without the time
 
-#Get coordinates from country polygons for selection
-coordpts <- SpatialPoints(poly) %>% as.data.frame()
-names(coordpts) <- c("Lon","Lat")
-
+# Datatable display
+polydt <- poly[-c(3,4)]
+polydt[3:length(polydt)] <- round(polydt[3:length(polydt)], digits=3)
 
 
 # Create color palettes for different datasets
@@ -142,6 +150,42 @@ names(pal) <- CVI
 # major_lakes <- read_sf("Data/Data_Final/Major_Lakes.shp") # dotted lines, color X
 # major_lakes <- st_transform(st_wrap_dateline(major_lakes), robin_crs)
 
+# Text to put in app
+PAGE_TITLE <- "Valuation Atlas Viewer"
+
+#bsPopover information
+DoS_info <- "The number of studies is the number of valuation studies conducted within each country or territory for the entire corpus."
+DoO_info <- "The number of organizations is the number of studies which reference the particular country within the affiliations, acknowledgements, or funding text for the entire corpus as a proxy for organizations which are conducting the research."
+Ratio_info <- "The ratio of studies and organizations is the number of studies divided by the number of organizations."
+
+# Disclaimer
+Full_disclaimer <-     tags$div(#style = "font-size:8px;text-align:justify;position:fixed;bottom:0%;width:14%;", # 14% if column width is 2
+                        style = "text-align:justify",
+                        
+                        HTML("<br>
+                              <b>
+                              The data behind this visualization are derived from a corpus of ~79,000 publications, gathered and analyzed for the IPEBS Values Assessment (<a href='https://doi.org/10.5281/zenodo.6522522'>Link</a>). 
+                              </b><br><br>
+                              <b>
+                              The number of studies is the number of valuation studies conducted within each country or territory for the entire corpus. 
+                              </b>
+                              There were 64,688 identifications of a country or territory from the title, abstract, or keywords consisting of 217 jurisdictions identified between [earliest date] and [latest date]. 
+                              <br><br>
+                              <b>
+                              The number of organizations is the number of studies which reference the particular country within the affiliations, acknowledgements, or funding text for the entire corpus as a proxy for organizations which are conducting the research. There were 140,188 identifications of a country or territory from the affiliations, acknowledgments, or funding text, consisting of 210 jurisdictions identified between [earliest date] and [latest date].
+                              </b><br><br>
+                              For more information about the corpus see the IPBES VA Chapter 3. Systematic review on Method Families (<a href='https://doi.org/10.5281/zenodo.4404436'>Link</a>) and IPBES VA Chapter 4. Systematic review on valuation uptake (<a href='https://doi.org/10.5281/zenodo.4391335'>Link</a>).
+                              <br><br>
+                              For more information on how the number of organizations and studies were derived, please review the documentation available on our github <a href='https://jkumagai96.github.io/VA_version2/Valuation_atlas.html'>here</a>. 
+                              <br><br>
+                              <i>
+                              The designations employed and the presentation of material on the maps used in the assessment do not imply the expression of any opinion whatsoever on the part of IPBES concerning the legal status of any country, territory, city or area or of its authorities, or concerning the delimitation of its frontiers or boundaries. These maps have been prepared or used for the sole purpose of facilitating the assessment of the broad biogeographical areas represented therein and for purposes of representing scientific data spatially.
+                              </i>
+                              "))
+
+
+
+
 
 
 #leaflet functions needed for map----
@@ -151,20 +195,11 @@ library(leaflet)
 
 # create map object
 my_map <- leaflet(poly, options = leafletOptions(minZoom = 2, maxZoom = 7, worldCopyJump = T)) %>%
-                  addProviderTiles(providers$CartoDB.Positron, options = providerTileOptions(noWrap = T)) %>%
-                  addPolygons(fillColor = topo.colors(10, alpha = NULL), stroke = FALSE)
+                  addProviderTiles(providers$CartoDB.Positron, options = providerTileOptions(noWrap = T)) #%>%
+                  # addPolygons(fillColor = "grey", stroke = FALSE)
 
-# utility function to change fill color
-# modFillCol <- function(x, var_x) {
-#   cls <- lapply(x$x$calls, function(cl) {
-#     if (cl$method == "addPolygons") {
-#       cl$args[[4]]$fillColor <- myPalette(var_x)
-#     }
-#     cl
-#   })
-#   x$x$calls <- cls
-#   x
-# }
 
-# see https://rstudio.github.io/leaflet/basemaps.html
-                  # setView(lng=coordpts[poly$NAME_0 == "Germany","Lon"], lat=coordpts[poly$NAME_0 == "Germany","Lat"], zoom=2)
+
+
+
+
