@@ -9,11 +9,9 @@
 
 
 library(shiny)
-# library(leaflet.minicharts)
 library(leaflet)
 library(leafpop)
-# library(ggplot2)
-# library(ggiraph)
+library(DT)
 
 
 
@@ -21,7 +19,42 @@ ui <- fluidPage(
     
     
     # App title ----
-    titlePanel("Valuation Atlas Viewer"),
+    titlePanel(
+      fluidRow(
+        column(5, PAGE_TITLE), 
+        column(7, div(style="float:right;", img(width=200, src="Senckenberg_Logo.jpg"), img(width=100, src="IPBES_LOGO.jpg"))
+        
+               # 
+               # style="text-align: center;", 
+               #          div(style="display: inline-block; width: 67%", img(width=200, src="Senckenberg_Logo.jpg")), 
+               #          div(style="display: inline-block; width: 33%", img(width=100, src="IPBES_LOGO.jpg")))
+      ))
+    ),
+    
+    
+    
+    
+    # titlePanel(
+    #   
+    #   
+    #   
+    #   
+    #   # fluidRow(
+    # 
+    #             # title=div('Valuation Atlas Viewer                            ', img(width=200, src="Senckenberg_Logo.jpg"), img(width=100, src="IPBES_LOGO.jpg"))
+    #   # title=div('Valuation Atlas Viewer', img(width=200, src="Senckenberg_Logo.jpg", class="leftAlign"), img(width=100, src="IPBES_LOGO.jpg", class="leftAlign"))
+    #   windowTitle = PAGE_TITLE,
+    #   title=div(PAGE_TITLE, img(width=200, src="Senckenberg_Logo.jpg", class="rightAlign"), img(width=100, src="IPBES_LOGO.jpg", class="rightAlign"))
+    #   
+    # #   
+    #   # fluidRow(
+    #   #                     column(8, 'Valuation Atlas Viewer'),
+    #   #                     
+    #   #                     column(1, img(width=200, src="Senckenberg_Logo.jpg")),
+    #   #                     column(1, offset=1, img(width=100, src="IPBES_LOGO.jpg"))
+    #   # 
+    #   #                     )
+    #            ),
     
     # Sidebar layout with input and output definitions ----
     # sidebarLayout(
@@ -41,14 +74,14 @@ ui <- fluidPage(
                         # Add options to limit map in box
                         
                         # Choose space
-                        selectInput(inputId = "Space", label="Select location", choices = c("Global", "Country"), selected = "Global"), # Make zoom
+                        selectInput(inputId = "Space", label="Select location", choices = c("Global", "Country level"), selected = "Global"), # Make zoom
         
                         #Make second choices pop up based on first choice in Space
-                        #Country selection
-                        conditionalPanel(condition='input.Space=="Country"',
-                                                                selectInput(inputId="Country",
-                                                                            label="Select country",
-                                                                            choices=c("",poly$NAME_0)) 
+                        #Name selection
+                        conditionalPanel(condition='input.Space=="Country level"',
+                                                                selectInput(inputId="Name",
+                                                                            label="Select jurisdiction",
+                                                                            choices=c("",poly$Name)) 
                                                             ),
                         
                         
@@ -71,14 +104,32 @@ ui <- fluidPage(
     conditionalPanel(
         condition = "input.inTabset == 'Table'",
         {fluidRow(style="background-color:#e8e8e8; padding:10px; border-radius:10px",
-                  tags$b("View data"), br(), br(),
+                  tags$b("Column name abbreviations:"), br(), br(), br(),
                   
-                  #Country selection
-                  
+                  #Name selection
                     # tags$b("Select a country to view data"), br(), br(),
-                                   selectInput(inputId="Country",
-                                               label="Select country",
-                                               choices=c("", poly$NAME_0))
+                                   # selectInput(inputId="Name",
+                                   #             label="Select jurisdiction",
+                                   #             choices=c("", poly$Name))
+                  
+                  
+                  # style = "font-size:10px;text-align:justify;position:fixed;0%;width:14%;",
+                  tags$b("Indicator"), br(), 
+                  "DoS   = Density of Studies", br(), 
+                  "DoO   = Density of Organizations", br(), 
+                  "Ratio = Ratio of Studies and Organizations", br(), br(), 
+                  
+                  tags$b("Time frame"), br(), 
+                  "Total = All data available", br(), #including pre-1990 to 2020
+                  "b1990 = Pre-1990 data", br(), 
+                  "b2000 = 1990-1999 data", br(),
+                  "b2010 = 2000-2009 data", br(),
+                  "b2020 = 2010-2020 data", br(),
+                  
+                  
+                  
+                  
+                  
          )}   
         
     ),
@@ -90,15 +141,15 @@ ui <- fluidPage(
     #     {fluidRow(style="background-color:#e8e8e8; padding:10px; border-radius:10px",
     #               tags$b("View comparison"), br(), br(),
     #               
-    #               #Country selection
+    #               #Name selection
     #               
-    #               selectInput(inputId="Country1",
+    #               selectInput(inputId="Name1",
     #                           label="1st country",
-    #                           choices=c("",poly$NAME_0)),
+    #                           choices=c("",poly$Name)),
     #               
-    #               selectInput(inputId="Country1",
+    #               selectInput(inputId="Name1",
     #                           label="2nd country",
-    #                           choices=c("",poly$NAME_0))
+    #                           choices=c("",poly$Name))
     #               
     #               
     #               
@@ -118,15 +169,18 @@ ui <- fluidPage(
                             opinion whatsoever on the part of the IPBES concerning the 
                             legal status of any country, territory, city or area or of 
                             its authorities, or concerning the delimitation of its frontiers or boundaries. 
+                            <br><br>
                         </i>
-                        <br><br>
-                             <center><img src="IPBES_LOGO.jpg" width="40%"></center>
-                        <br><br>
                      '),
             
                                                
                 ),    
-           
+    #   <br><br>
+    #   <center><img src="IPBES_LOGO.jpg" width="40%"></center>
+    #   <br><br>
+    
+    
+    
             # Lower panel for information ----
             # Disclaimer
             # fluidRow(
@@ -153,7 +207,7 @@ ui <- fluidPage(
                
                tabsetPanel(id="inTabset",
                   tabPanel("Map", leafletOutput("map", height="80vh") ),
-                  tabPanel("Table", tableOutput("table")),
+                  tabPanel("Table", dataTableOutput("table", width = "100%"), style = "height:80vh; overflow-y: scroll;overflow-x: scroll;"),
                   # tabPanel("Compare")
         )#end tabset panel
                   )
@@ -162,35 +216,18 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
     
-    cchoices <- reactive(paste0(input$Indicator, input$TempRes)) # Combined choices of Indicator and TempRes return full Indicator name
+    # Combined choices of Indicator and TempRes return full Indicator name
+    cchoices <- reactive(paste0(input$Indicator, input$TempRes)) 
     
-    
-
-    # fpdata <- reactive({ #filtered data for country selection and popup table
-    #     pdata[poly$NAME_0 == input$Country,]
-    # })
-    
-    # fpdata1 <- reactive({ #filtered data for country selection and popup table
-    #     if(exists("input$Country")==F){return(pdata)}else{return(pdata[poly$NAME_0 == input$Country,])}
-    # })
-    
-    
-    fpdata <- reactive({ #filtered data for popup table
-      pdata[pdata$NAME_0 == input$Country, c(1, 2, grep(input$TempRes, names(poly)))]
+    # Filtered data for popup table
+    fpdata <- reactive({ 
+      pdata[pdata$Name == input$Name, c(1, 2, grep(input$TempRes, names(poly)))]
     })
+
     
     # Map   
     {
     output$map <- renderLeaflet({my_map})
-    
-    # This reactive expression for color palette
-    # palette <- reactive({
-    #     colorNumeric(
-    #         palette = pal[[input$Indicator]],
-    #         domain = poly[[input$Indicator]]
-    #     )
-    # })
-    # 
     
 
     
@@ -198,11 +235,16 @@ server <- function(input, output, session) {
     filteredData <- reactive({
         poly[cchoices()]
     })
-    # 
-    # This reactive expression for color palette
-    # colorpal <- reactive({
-    #     pal[[input$Indicator]]
-    # })
+    
+    
+    # Circlesizes
+    circlesizes <- reactive({
+      upcsize <- 5 + poly[[cchoices()]]
+      upcsize[is.na(upcsize)] <- 0
+      upcsize <- 5 + upcsize
+      log(upcsize)*2
+    })
+
     
     
     observe({
@@ -212,10 +254,10 @@ server <- function(input, output, session) {
                             )
         
         leafletProxy("map", data = filteredData()) %>%
-            clearShapes() %>% clearControls() %>%
-            addPolygons(stroke=F,  
-                        color = ~palette(poly[[cchoices()]]), label=poly$NAME_0, # data shown on hover
-                        weight = 1, popup=popupTable(pdata[, c(1, 2, grep(input$TempRes, names(poly)))], row.numbers = F, feature.id = F), #map(1:length(names(poly)), ~poly[[.x]])
+            clearControls() %>% clearPopups() %>% clearShapes() %>%
+            addCircleMarkers(lng= poly$Lon, lat= poly$Lat, stroke=F, radius = circlesizes(), #, clusterOptions = markerClusterOptions(disableClusteringAtZoom=6, maxClusterRadius=20)
+                        color = ~palette(poly[[cchoices()]]), label=poly$Name, # data shown on hover
+                        popup=popupTable(pdata[, c(1, 2, grep(input$TempRes, names(poly)))], row.numbers = F, feature.id = F), #map(1:length(names(poly)), ~poly[[.x]])
                         fillOpacity = 0.7)  %>%
             addScaleBar(position = "bottomleft", options = scaleBarOptions()) %>%
             addLegend("topright", title=tcAttributes$Names[tcAttributes$Values==cchoices()], pal=palette, values=poly[[cchoices()]], na.label = "Missing", opacity=1)
@@ -232,16 +274,14 @@ server <- function(input, output, session) {
                 setView(lng = 0, lat = 20, zoom = 2) 
     })
     
-    # Country selection zoom
+    # Name selection zoom
     fpts <- reactive({ #filtered points
-        coordpts[poly$NAME_0 == input$Country,]
+        coordpts[poly$Name == input$Name,]
     })
 
 
-
-
     observe({
-        req(input$Country)
+        req(input$Name)
         ctryzoom <- fpts()
         leafletProxy("map") %>%
             clearPopups() %>%  # addMarkers(lng = ctryzoom$Lon, lat = ctryzoom$Lat, popup=popupTable(pdata, row.numbers = F, feature.id = F)) %>% 
@@ -269,14 +309,14 @@ server <- function(input, output, session) {
     }
     
     
-    # input$tableId_rows_selected <- reactive(input$Country)
+    # input$tableId_rows_selected <- reactive(input$Name)
     # https://stackoverflow.com/questions/21515800/subset-a-data-frame-based-on-user-input-shiny
     
     # Table
-    output$table <- renderTable(fpdata1())
+    output$table <- renderDT({datatable(polydt, options = list(paging = FALSE))})
     
     
-    # if(exists("input$Country")){return(pdata)}else{pdata[poly$NAME_0 == input$Country,]}
+    # if(exists("input$Name")){return(pdata)}else{pdata[poly$Name == input$Name,]}
     
 }
 
