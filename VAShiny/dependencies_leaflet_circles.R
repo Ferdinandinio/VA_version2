@@ -8,6 +8,13 @@ library(sf)
 library(sp)
 library(readxl)
 library(htmlwidgets)
+library(shiny)
+library(leaflet)
+library(leafpop)
+library(DT)
+library(shinyBS)
+library(shinydashboard)
+
 # library(openxlsx)
 
 # data <- readxl::read_excel("Data/IPBES_VA_Uptake_Corpus_06May20_GEONames_TS_16June20.xlsx", sheet = 1)
@@ -135,7 +142,7 @@ names(pal) <- CVI
 }
 
 # Load Shapefiles for updated borders-----
-# grey_areas <- read_sf("Data/Data_Final/grey_areas.shp") # area grey, no outlines
+grey_areas <- read_sf("Data/Data_Final/grey_areas.shp") # area grey, no outlines
 # grey_areas <- st_transform(st_wrap_dateline(grey_areas), robin_crs)
 # 
 # solid_borders <- read_sf("Data/Data_Final/solid_borders.shp") # solid lines, color X
@@ -159,29 +166,40 @@ DoO_info <- "The number of organizations is the number of studies which referenc
 Ratio_info <- "The ratio of studies and organizations is the number of studies divided by the number of organizations."
 
 # Disclaimer
-Full_disclaimer <-     tags$div(#style = "font-size:8px;text-align:justify;position:fixed;bottom:0%;width:14%;", # 14% if column width is 2
-                        style = "text-align:justify",
-                        
-                        HTML("<br>
-                              <b>
-                              The data behind this visualization are derived from a corpus of ~79,000 publications, gathered and analyzed for the IPEBS Values Assessment (<a href='https://doi.org/10.5281/zenodo.6522522'>Link</a>). 
-                              </b><br><br>
-                              <b>
-                              The number of studies is the number of valuation studies conducted within each country or territory for the entire corpus. 
-                              </b>
-                              There were 64,688 identifications of a country or territory from the title, abstract, or keywords consisting of 217 jurisdictions identified between [earliest date] and [latest date]. 
-                              <br><br>
-                              <b>
-                              The number of organizations is the number of studies which reference the particular country within the affiliations, acknowledgements, or funding text for the entire corpus as a proxy for organizations which are conducting the research. There were 140,188 identifications of a country or territory from the affiliations, acknowledgments, or funding text, consisting of 210 jurisdictions identified between [earliest date] and [latest date].
-                              </b><br><br>
-                              For more information about the corpus see the IPBES VA Chapter 3. Systematic review on Method Families (<a href='https://doi.org/10.5281/zenodo.4404436'>Link</a>) and IPBES VA Chapter 4. Systematic review on valuation uptake (<a href='https://doi.org/10.5281/zenodo.4391335'>Link</a>).
-                              <br><br>
-                              For more information on how the number of organizations and studies were derived, please review the documentation available on our github <a href='https://jkumagai96.github.io/VA_version2/Valuation_atlas.html'>here</a>. 
-                              <br><br>
-                              <i>
-                              The designations employed and the presentation of material on the maps used in the assessment do not imply the expression of any opinion whatsoever on the part of IPBES concerning the legal status of any country, territory, city or area or of its authorities, or concerning the delimitation of its frontiers or boundaries. These maps have been prepared or used for the sole purpose of facilitating the assessment of the broad biogeographical areas represented therein and for purposes of representing scientific data spatially.
-                              </i>
-                              "))
+Further_information <- tags$div(#style = "font-size:8px;text-align:justify;position:fixed;bottom:0%;width:14%;", # 14% if column width is 2
+                                style = "text-align:justify",
+                                
+                                HTML("<br><br><br><br>
+                                      <b>
+                                      This app was created by Ferdinand Wilhelm with support by Joy Kumagai and Aidin Niamir.
+                                      <br><br>
+                                      DOI:
+                                      <br><br>
+                                      Version: 1.0
+                                      <br><br>
+                                      </b>
+                                      <br><br><br><br>
+                                      <b>
+                                      The data behind this visualization are derived from a corpus of ~79,000 publications, gathered and analyzed for the IPEBS Values Assessment (<a href='https://doi.org/10.5281/zenodo.6522522'>Link</a>). 
+                                      </b><br><br>
+                                      <b>
+                                      The number of studies is the number of valuation studies conducted within each country or territory for the entire corpus. 
+                                      </b>
+                                      There were 64,688 identifications of a country or territory from the title, abstract, or keywords consisting of 217 jurisdictions identified between [earliest date] and [latest date]. 
+                                      <br><br>
+                                      <b>
+                                      The number of organizations is the number of studies which reference the particular country within the affiliations, acknowledgements, or funding text for the entire corpus as a proxy for organizations which are conducting the research. 
+                                      </b>
+                                      There were 140,188 identifications of a country or territory from the affiliations, acknowledgments, or funding text, consisting of 210 jurisdictions identified between [earliest date] and [latest date].
+                                      <br><br>
+                                      For more information about the corpus see the IPBES VA Chapter 3. Systematic review on Method Families (<a href='https://doi.org/10.5281/zenodo.4404436'>Link</a>) and IPBES VA Chapter 4. Systematic review on valuation uptake (<a href='https://doi.org/10.5281/zenodo.4391335'>Link</a>).
+                                      <br><br>
+                                      For more information on how the number of organizations and studies were derived, please review the documentation available on our github <a href='https://jkumagai96.github.io/VA_version2/Valuation_atlas.html'>here</a>. 
+                                      <br><br>
+                                      <i>
+                                      The designations employed and the presentation of material on the maps used in the assessment do not imply the expression of any opinion whatsoever on the part of IPBES concerning the legal status of any country, territory, city or area or of its authorities, or concerning the delimitation of its frontiers or boundaries. These maps have been prepared or used for the sole purpose of facilitating the assessment of the broad biogeographical areas represented therein and for purposes of representing scientific data spatially.
+                                      </i>
+                                      "))
 
 
 
@@ -189,14 +207,10 @@ Full_disclaimer <-     tags$div(#style = "font-size:8px;text-align:justify;posit
 
 
 #leaflet functions needed for map----
-
-# library(tmap)
-library(leaflet)
-
 # create map object
 my_map <- leaflet(poly, options = leafletOptions(minZoom = 2, maxZoom = 7, worldCopyJump = T)) %>%
-                  addProviderTiles(providers$CartoDB.Positron, options = providerTileOptions(noWrap = T)) #%>%
-                  # addPolygons(fillColor = "grey", stroke = FALSE)
+                  addProviderTiles(providers$CartoDB.Positron, options = providerTileOptions(noWrap = F)) %>%
+                  addPolygons(data=grey_areas, fillColor = "grey", stroke = FALSE)
 
 
 

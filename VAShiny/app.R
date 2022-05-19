@@ -1,6 +1,6 @@
 
 # file.edit("VAShiny/dependenciesfinal.R")
-# source("VAShiny/dependencies.R")
+# source("VAShiny/dependencies_leaflet_circles.R")
 
 #Space - Choose where to zoom - country selection; regional selection, global view (no selection)
 #Indicator
@@ -8,11 +8,6 @@
 #Textinput - function TBA
 
 
-library(shiny)
-library(leaflet)
-library(leafpop)
-library(DT)
-library(shinyBS)
 
 
 
@@ -88,7 +83,8 @@ ui <- fluidPage(
                         bsPopover(id="DoO_info", title=NULL, content=DoO_info, trigger="hover", placement="right", options=list(container="body")),
                         bsPopover(id="Ratio_info", title=NULL, content=Ratio_info, trigger="hover", placement="right", options=list(container="body")),
                         
-                        
+                        br(),
+                  
                         # Time selection
                         radioButtons(inputId = "TempRes", label="Select time frame", choiceNames = CNT, choiceValues = CVT), #
                         # textInput(inputId = "Search", label="")
@@ -102,7 +98,25 @@ ui <- fluidPage(
     conditionalPanel(
         condition = "input.inTabset == 'Table'",
         {fluidRow(style="background-color:#e8e8e8; padding:10px; border-radius:10px",
-                  tags$b("Column name abbreviations:"), br(), br(), br(),
+                  HTML("<span style='font-size:15px'> <b>Column name abbreviations:</b></span><br><br><br> 
+                        <b>Indicator</b> <br> 
+                        DoS   = Density of Studies <br> 
+                        DoO   = Density of Organizations <br>
+                        Ratio = Ratio of Studies and Organizations <br><br>
+                       
+                        <b>Time frame</b> <br>  
+                        Total = All data available <br> 
+                        b1990 = Pre-1990 data <br> 
+                        b2000 = 1990-1999 data <br> 
+                        b2010 = 2000-2009 data <br> 
+                        b2020 = 2010-2020 data <br> 
+                       
+                       
+                       
+                       ")
+                  
+                  
+                  # tags$b("Column name abbreviations:"), br(), br(), br(),
                   
                   #Name selection
                     # tags$b("Select a country to view data"), br(), br(),
@@ -112,17 +126,17 @@ ui <- fluidPage(
                   
                   
                   # style = "font-size:10px;text-align:justify;position:fixed;0%;width:14%;",
-                  tags$b("Indicator"), br(), 
-                  "DoS   = Density of Studies", br(), 
-                  "DoO   = Density of Organizations", br(), 
-                  "Ratio = Ratio of Studies and Organizations", br(), br(), 
-                  
-                  tags$b("Time frame"), br(), 
-                  "Total = All data available", br(), #including pre-1990 to 2020
-                  "b1990 = Pre-1990 data", br(), 
-                  "b2000 = 1990-1999 data", br(),
-                  "b2010 = 2000-2009 data", br(),
-                  "b2020 = 2010-2020 data", br(),
+                  # tags$b("Indicator"), br(), 
+                  # "DoS   = Density of Studies", br(), 
+                  # "DoO   = Density of Organizations", br(), 
+                  # "Ratio = Ratio of Studies and Organizations", br(), br(), 
+                  # 
+                  # tags$b("Time frame"), br(), 
+                  # "Total = All data available", br(), #including pre-1990 to 2020
+                  # "b1990 = Pre-1990 data", br(), 
+                  # "b2000 = 1990-1999 data", br(),
+                  # "b2010 = 2000-2009 data", br(),
+                  # "b2020 = 2010-2020 data", br(),
                   
                   
          )}   
@@ -153,7 +167,7 @@ ui <- fluidPage(
     conditionalPanel(
       condition = "input.inTabset == 'Further information'",
       {fluidRow(style="background-color:#e8e8e8; padding:10px; border-radius:10px",
-                tags$b("Full disclaimer regarding dataset information:"), br(), br(), br(),
+                tags$b("Disclaimer regarding app and dataset information"), 
       
       )}   
       
@@ -161,20 +175,21 @@ ui <- fluidPage(
     
     
     # Disclaimer at bottom of sidepanel
-    tags$footer(#style = "font-size:8px;text-align:justify";position:fixed;bottom:0%;width:14%;", # 14% if column width is 2
-                style = "font-size:8px;text-align:justify;position:fixed;bottom:0%;width:22%;",
-                HTML("  <span style='font-size:11px'>
-                        The data behind this visualization are derived from a corpus of ~79,000 publications, gathered and analyzed for the IPEBS Values Assessment (<a href='https://doi.org/10.5281/zenodo.6522522'>Link</a>). 
-                        <br>
-                        For more information about the corpus see the IPBES VA Chapter 3. Systematic review on Method Families (<a href='https://doi.org/10.5281/zenodo.4404436'>Link</a>) and IPBES VA Chapter 4. Systematic review on valuation uptake (<a href='https://doi.org/10.5281/zenodo.4391335'>Link</a>).
-                        <br>
-                        For more information on how the number of organizations and studies were derived, please review the documentation available on our github <a href='https://jkumagai96.github.io/VA_version2/Valuation_atlas.html'>here</a>. 
-                        <br><br></span>
-                        <i>    
-                        The designations employed and the presentation of material on the maps used in the assessment do not imply the expression of any opinion whatsoever on the part of IPBES concerning the legal status of any country, territory, city or area or of its authorities, or concerning the delimitation of its frontiers or boundaries. These maps have been prepared or used for the sole purpose of facilitating the assessment of the broad biogeographical areas represented therein and for purposes of representing scientific data spatially.
-                            <br><br>
-                        </i>
-                     ")),    
+    conditionalPanel(condition = "input.inTabset != 'Further information'",
+          tags$footer(#style = "font-size:8px;text-align:justify";position:fixed;bottom:0%;width:14%;", # 14% if column width is 2
+                      style = "font-size:11px;text-align:justify;position:fixed;bottom:0%;width:22%;",
+                      HTML("  <span style='font-size:13px'>
+                              The data behind this visualization are derived from a corpus of ~79,000 publications, gathered and analyzed for the IPEBS Values Assessment (<a href='https://doi.org/10.5281/zenodo.6522522'>Link</a>). 
+                              <br>
+                              For more information about the corpus see the IPBES VA Chapter 3. Systematic review on Method Families (<a href='https://doi.org/10.5281/zenodo.4404436'>Link</a>) and IPBES VA Chapter 4. Systematic review on valuation uptake (<a href='https://doi.org/10.5281/zenodo.4391335'>Link</a>).
+                              <br>
+                              For more information on how the number of organizations and studies were derived, please review the documentation available on our github <a href='https://jkumagai96.github.io/VA_version2/Valuation_atlas.html'>here</a>. 
+                              <br><br></span>
+                              <i>    
+                              The designations employed and the presentation of material on the maps used in the assessment do not imply the expression of any opinion whatsoever on the part of IPBES concerning the legal status of any country, territory, city or area or of its authorities, or concerning the delimitation of its frontiers or boundaries. These maps have been prepared or used for the sole purpose of facilitating the assessment of the broad biogeographical areas represented therein and for purposes of representing scientific data spatially.
+                              <br><br>
+                              </i>
+                           "))) # make it collide with top box
 
     #   <br><br>
     #   <center><img src="IPBES_LOGO.jpg" width="40%"></center>
@@ -203,7 +218,7 @@ ui <- fluidPage(
                tabsetPanel(id="inTabset",
                   tabPanel("Map", leafletOutput("map", height="80vh") ),
                   tabPanel("Table", dataTableOutput("table", width = "100%"), style = "height:80vh; overflow-y: scroll;overflow-x: scroll;"),
-                  tabPanel("Further information", Full_disclaimer)
+                  tabPanel("Further information", Further_information)
         )#end tabset panel
                   )
     # )
@@ -233,19 +248,31 @@ server <- function(input, output, session) {
     
 
     
-
-    
     # Circlesizes
     circlesizes <- reactive({
       upcsize <- 5 + poly[[cchoices()]]
       upcsize[is.na(upcsize)] <- 0
       upcsize <- 5 + upcsize
-      log(upcsize)*2
+      
+      log(upcsize)*25000 # circles (something between 15000 and 35000)
+      # log(upcsize)*2     # circlemarkers
+      
     })
 
+    # Mapzoom size limit
+    # mapzoomsl <- reactive({
+    #   return(input$map_zoom)
+    # }) 
+    # mapzoomsl <- observe(#eventExpr = input$map_zoom, 
+    #                           {
+    #                             as.numeric(
+    #                             cat(case_when(input$map_zoom ==2 ~1, input$map_zoom ==3 ~2, input$map_zoom ==4 ~3, input$map_zoom >=5 ~4)))
+    #                             })
+    #                       
+    # print(is.numeric(mapzoomsl))
     
     # Interactive map
-    observe({
+    observe({ 
     # Colors
         palette <- colorBin(bins=10, pretty=T,
                             palette = pal[[input$Indicator]],
@@ -253,8 +280,9 @@ server <- function(input, output, session) {
                             )
     # Edit map according to input
         leafletProxy("map", data = filteredData()) %>%
-            clearControls() %>% clearPopups() %>% clearMarkers() %>%
-            addCircleMarkers(lng= poly$Lon, lat= poly$Lat, stroke=F, radius = circlesizes(), #, clusterOptions = markerClusterOptions(disableClusteringAtZoom=6, maxClusterRadius=20)
+            clearControls() %>% #clearPopups() %>% #clearMarkers() %>% #removeMarker(layerId = poly$Name) %>% #clearsShape(layerId = 10) %>%
+            addCircles(lng= poly$Lon, lat= poly$Lat, stroke=T, weight=5, 
+                       radius = circlesizes()*case_when(input$map_zoom ==2 ~1.8, input$map_zoom ==3 ~1.2, input$map_zoom ==4 ~1.1, input$map_zoom ==5 ~0.9, input$map_zoom ==6 ~0.8, input$map_zoom ==7 ~0.6), layerId = poly$Name,# clusterOptions = markerClusterOptions(disableClusteringAtZoom=8, maxClusterRadius=2),
                         color = ~palette(poly[[cchoices()]]), label=poly$Name, # data shown on hover
                         popup=popupTable(pdata[, c(1, 2, grep(input$TempRes, names(poly)))], row.numbers = F, feature.id = F), #map(1:length(names(poly)), ~poly[[.x]])
                         fillOpacity = 0.7)  %>%
@@ -263,6 +291,7 @@ server <- function(input, output, session) {
             labelFormat(suffix=" ")
             # choiceNames[grep(paste0(input$Indicator,"$"), choiceValues)]
     })
+    
     
     
     #Global zoom
@@ -280,6 +309,7 @@ server <- function(input, output, session) {
 
 
     observe({
+        # req(input$Name)
         req(input$Name)
         ctryzoom <- fpts()
         leafletProxy("map") %>%
